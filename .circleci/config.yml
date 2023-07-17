@@ -1,70 +1,26 @@
+# Use the latest 2.1 version of CircleCI pipeline process engine.
+# See: https://circleci.com/docs/configuration-reference
 version: 2.1
-setup: true
 
-orbs:
-  continuation: circleci/continuation@0.3.1
-
+# Define a job to be invoked later in a workflow.
+# See: https://circleci.com/docs/configuration-reference/#jobs
 jobs:
-  verify-ci-should-run:
+  say-hello:
+    # Specify the execution environment. You can specify an image from Docker Hub or use one of our convenience images from CircleCI's Developer Hub.
+    # See: https://circleci.com/docs/configuration-reference/#executor-job
     docker:
-      - image: cimg/node:current
+      - image: cimg/base:stable
+    # Add steps to the job
+    # See: https://circleci.com/docs/configuration-reference/#steps
     steps:
+      - checkout
       - run:
-          name: Verify CI should run
-          command: |
-            # run CI when manually triggers via CircleCi Dashboard
-            if [ <<pipeline.trigger_source>> == 'api' ]; then
-              echo "Always run CI when manually triggered from the UI."
-              exit 0
-            fi
+          name: "Say hello"
+          command: "echo Hello, World!"
 
-            if [[ "$CIRCLE_BRANCH" == "develop" || "$CIRCLE_BRANCH" == "release/"* ]]; then
-              echo "Always run CI for develop and for release candidate branches."
-              exit 0
-            fi
-
-            LAST_COMMIT_MESSAGE=$(curl --silent "https://api.github.com/repos/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/commits/${CIRCLE_BRANCH}" | jq '.commit.message')
-
-            if [[ "$LAST_COMMIT_MESSAGE" =~ "run ci" ]]; then
-              echo "Always run CI when the commit message includes 'run ci'."
-              exit 0
-            fi
-
-            cancel_build () {
-              echo "Canceling the CI build..."
-              circleci-agent step halt
-            }
-
-            TRIGGER_INSTRUCTIONS="to trigger CI , include 'run ci' in the commit message or click the 'Trigger Pipeline' button in the CircleCI UI."
-
-            if [ ! -z "${CIRCLE_PULL_REQUEST##*/}" ]; then
-              DRAFT=$(curl --silent "https://api.github.com/repos/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/pulls/${CIRCLE_PULL_REQUEST##*/}" | jq '.draft')
-
-              if [[ "${DRAFT}" == true ]]; then
-                echo "Skipping CI; PR is in draft - $TRIGGER_INSTRUCTIONS"
-                cancel_build
-              fi
-
-              echo "Always run CI for PR that is ready for review."
-              exit 0
-            fi
-
-            echo "Skipping CI; branch in progress - $TRIGGER_INSTRUCTIONS"
-            cancel_build
-
-      - run:
-          name: Download .circleci/workflows.yaml
-          command: |
-            if [[ "$CIRCLE_BRANCH" == "pull/"* ]]; then
-              curl -o workflows.yml https://raw.githubusercontent.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/develop/.circleci/workflows.yml
-            else 
-              curl -o workflows.yml https://raw.githubusercontent.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${CIRCLE_BRANCH}/.circleci/workflows.yml
-            fi
-      - continuation/continue:
-          configuration_path: workflows.yml
-
+# Orchestrate jobs using workflows
+# See: https://circleci.com/docs/configuration-reference/#workflows
 workflows:
-  # the setup-workflow workflow is always triggered.
-  setup-workflow:
+  say-hello-workflow:
     jobs:
-      - verify-ci-should-run
+      - say-hello
